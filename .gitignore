@@ -1,0 +1,34 @@
+# Build output
+build/
+*.pbw
+
+# Dependencies
+node_modules/
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+
+# Editor/IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+
+# Pebble SDK
+.pebble-sdk/
+.lock-wscript
+.lock-waf_*_build
+
+# Logs
+*.log
+npm-debug.log*
+
+# Claude
+.claude/

@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Prayer Keeper Settings</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #1a5f2a 0%, #0d3d18 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        h1 {
+            color: white;
+            font-size: 24px;
+            font-weight: 600;
+            margin: 0 0 5px 0;
+        }
+
+        .subtitle {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+        }
+
+        .setting {
+            background: white;
+            border-radius: 12px;
+            padding: 18px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .setting-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .setting label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #333;
+            font-size: 15px;
+        }
+
+        .setting select,
+        .setting input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            background: #fafafa;
+            transition: border-color 0.2s;
+        }
+
+        .setting select:focus,
+        .setting input[type="number"]:focus {
+            outline: none;
+            border-color: #1a5f2a;
+            background: white;
+        }
+
+        /* Toggle switch */
+        .toggle-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .toggle-label {
+            font-weight: 600;
+            color: #333;
+            font-size: 15px;
+        }
+
+        .toggle {
+            position: relative;
+            width: 52px;
+            height: 28px;
+        }
+
+        .toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.3s;
+            border-radius: 28px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .toggle input:checked + .toggle-slider {
+            background-color: #1a5f2a;
+        }
+
+        .toggle input:checked + .toggle-slider:before {
+            transform: translateX(24px);
+        }
+
+        .manual-inputs {
+            margin-top: 15px;
+            display: none;
+        }
+
+        .manual-inputs.show {
+            display: block;
+        }
+
+        .manual-inputs input {
+            margin-bottom: 10px;
+        }
+
+        .manual-inputs .input-group {
+            margin-bottom: 12px;
+        }
+
+        .manual-inputs .input-label {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #1a5f2a 0%, #2d8b3f 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 25px;
+            box-shadow: 0 4px 12px rgba(26, 95, 42, 0.4);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(26, 95, 42, 0.5);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .note {
+            font-size: 12px;
+            color: #888;
+            margin-top: 8px;
+            line-height: 1.4;
+        }
+
+        .section-title {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 25px 0 12px 5px;
+        }
+
+        .icon {
+            font-size: 20px;
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Prayer Keeper</h1>
+            <div class="subtitle">Configure your prayer time settings</div>
+        </div>
+
+        <div class="section-title">Calculation Settings</div>
+
+        <div class="setting">
+            <label><span class="icon">🕌</span>Calculation Method</label>
+            <select id="calculationMethod">
+                <option value="mwl">Muslim World League</option>
+                <option value="isna">ISNA (North America)</option>
+                <option value="egyptian">Egyptian General Authority</option>
+                <option value="umm_al_qura">Umm Al-Qura (Makkah)</option>
+                <option value="karachi">University of Islamic Sciences, Karachi</option>
+                <option value="tehran">Institute of Geophysics, Tehran</option>
+                <option value="singapore">Singapore</option>
+                <option value="moonsighting">Moonsighting Committee</option>
+            </select>
+            <p class="note">Different methods are used in different regions. The app will suggest a method based on your location.</p>
+        </div>
+
+        <div class="setting">
+            <label><span class="icon">🌅</span>Asr Calculation</label>
+            <select id="asrMethod">
+                <option value="shafi">Shafi (Standard) - shadow equals object</option>
+                <option value="hanafi">Hanafi (Later) - shadow twice object</option>
+            </select>
+        </div>
+
+        <div class="section-title">Location</div>
+
+        <div class="setting">
+            <div class="toggle-container">
+                <span class="toggle-label"><span class="icon">📍</span>Use Manual Location</span>
+                <label class="toggle">
+                    <input type="checkbox" id="manualLocation">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            <div class="manual-inputs" id="manualInputs">
+                <div class="input-group">
+                    <span class="input-label">Latitude</span>
+                    <input type="number" step="any" id="manualLatitude" placeholder="e.g., 51.5074">
+                </div>
+                <div class="input-group">
+                    <span class="input-label">Longitude</span>
+                    <input type="number" step="any" id="manualLongitude" placeholder="e.g., -0.1278">
+                </div>
+            </div>
+            <p class="note">Enable this if GPS is unavailable or you want to set a specific location.</p>
+        </div>
+
+        <div class="section-title">Notifications</div>
+
+        <div class="setting">
+            <div class="toggle-container">
+                <span class="toggle-label"><span class="icon">📅</span>Enable Timeline Pins</span>
+                <label class="toggle">
+                    <input type="checkbox" id="timelineEnabled" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            <p class="note">Show prayer times in your Pebble Timeline for quick access.</p>
+        </div>
+
+        <div class="setting">
+            <label><span class="icon">⏰</span>Reminder Time</label>
+            <select id="reminderMinutes">
+                <option value="5">5 minutes before</option>
+                <option value="10" selected>10 minutes before</option>
+                <option value="15">15 minutes before</option>
+                <option value="20">20 minutes before</option>
+                <option value="30">30 minutes before</option>
+            </select>
+            <p class="note">Get a reminder notification before each prayer.</p>
+        </div>
+
+        <div class="setting">
+            <div class="toggle-container">
+                <span class="toggle-label"><span class="icon">📳</span>Vibrate at Prayer Time</span>
+                <label class="toggle">
+                    <input type="checkbox" id="vibrationEnabled" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            <p class="note">Vibrate when it's time for prayer (respects quiet time).</p>
+        </div>
+
+        <button class="btn" onclick="saveSettings()">Save Settings</button>
+    </div>
+
+    <script>
+        // Load settings from URL hash
+        function loadSettings() {
+            var hash = window.location.hash.substring(1);
+            if (hash) {
+                try {
+                    var settings = JSON.parse(decodeURIComponent(hash));
+
+                    if (settings.calculationMethod) {
+                        document.getElementById('calculationMethod').value = settings.calculationMethod;
+                    }
+                    if (settings.asrMethod) {
+                        document.getElementById('asrMethod').value = settings.asrMethod;
+                    }
+
+                    document.getElementById('manualLocation').checked = settings.manualLocation || false;
+
+                    if (settings.manualLatitude) {
+                        document.getElementById('manualLatitude').value = settings.manualLatitude;
+                    }
+                    if (settings.manualLongitude) {
+                        document.getElementById('manualLongitude').value = settings.manualLongitude;
+                    }
+
+                    document.getElementById('timelineEnabled').checked = settings.timelineEnabled !== false;
+
+                    if (settings.reminderMinutes) {
+                        document.getElementById('reminderMinutes').value = settings.reminderMinutes;
+                    }
+
+                    document.getElementById('vibrationEnabled').checked = settings.vibrationEnabled !== false;
+
+                    toggleManualInputs();
+                } catch (e) {
+                    console.log('Error loading settings: ' + e);
+                }
+            }
+        }
+
+        // Toggle manual location inputs visibility
+        function toggleManualInputs() {
+            var show = document.getElementById('manualLocation').checked;
+            document.getElementById('manualInputs').className = 'manual-inputs' + (show ? ' show' : '');
+        }
+
+        // Add event listener for manual location toggle
+        document.getElementById('manualLocation').addEventListener('change', toggleManualInputs);
+
+        // Save settings and return to Pebble app
+        function saveSettings() {
+            var settings = {
+                calculationMethod: document.getElementById('calculationMethod').value,
+                asrMethod: document.getElementById('asrMethod').value,
+                manualLocation: document.getElementById('manualLocation').checked,
+                manualLatitude: parseFloat(document.getElementById('manualLatitude').value) || 0,
+                manualLongitude: parseFloat(document.getElementById('manualLongitude').value) || 0,
+                timelineEnabled: document.getElementById('timelineEnabled').checked,
+                reminderMinutes: parseInt(document.getElementById('reminderMinutes').value),
+                vibrationEnabled: document.getElementById('vibrationEnabled').checked
+            };
+
+            var encoded = encodeURIComponent(JSON.stringify(settings));
+
+            // Return to Pebble app with settings
+            window.location.href = 'pebblejs://close#' + encoded;
+        }
+
+        // Initialize
+        loadSettings();
+    </script>
+</body>
+</html>

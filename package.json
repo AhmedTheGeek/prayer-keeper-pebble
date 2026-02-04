@@ -1,0 +1,51 @@
+{
+  "name": "prayer-keeper",
+  "author": "Prayer Keeper",
+  "version": "1.0.0",
+  "keywords": ["prayer", "islam", "muslim", "salat", "adhan"],
+  "private": true,
+  "dependencies": {
+    "adhan": "^4.4.3"
+  },
+  "pebble": {
+    "displayName": "Prayer Keeper",
+    "uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "sdkVersion": "3",
+    "enableMultiJS": true,
+    "targetPlatforms": ["aplite", "basalt", "chalk", "diorite", "emery"],
+    "watchapp": {
+      "watchface": false
+    },
+    "messageKeys": [
+      "REQUEST_DATA",
+      "FAJR_TIME",
+      "SUNRISE_TIME",
+      "DHUHR_TIME",
+      "ASR_TIME",
+      "MAGHRIB_TIME",
+      "ISHA_TIME",
+      "NEXT_PRAYER_NAME",
+      "NEXT_PRAYER_TIME",
+      "COUNTDOWN_SECONDS",
+      "LOCATION_NAME",
+      "ERROR_CODE",
+      "ERROR_MESSAGE",
+      "NEXT_PRAYER_INDEX"
+    ],
+    "capabilities": ["location", "configurable"],
+    "resources": {
+      "media": [
+        {
+          "type": "png",
+          "name": "IMAGE_MOSQUE_ICON",
+          "file": "images/mosque_icon.png"
+        },
+        {
+          "type": "png",
+          "name": "IMAGE_PRAYER_ICON",
+          "file": "images/prayer_icon.png"
+        }
+      ]
+    }
+  }
+}
