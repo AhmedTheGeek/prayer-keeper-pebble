@@ -90,20 +90,24 @@ prayer-keeper-pebble/
 │   └── images/
 │       ├── mosque_icon.png   # App icon (25x25)
 │       └── prayer_icon.png   # Menu/Timeline icon
-├── src/
-│   ├── main.c                # App entry point
-│   ├── prayer_display.c/h    # Main UI window
-│   ├── message_handler.c/h   # AppMessage communication
-│   ├── prayer_data.h         # Shared data structures
-│   └── pkjs/
-│       ├── index.js          # PebbleKit JS entry point
-│       ├── prayer_times.js   # Adhan library wrapper
-│       ├── timeline.js       # Timeline pin management
-│       ├── location.js       # Geolocation handling
-│       └── settings.js       # Settings persistence
-└── config/
-    └── index.html            # Settings page (standalone)
+└── src/
+    ├── main.c                # App entry point + persistent cache
+    ├── prayer_display.c/h    # Main window (next prayer + countdown)
+    ├── prayer_list.c/h       # List window (all 5 named prayers)
+    ├── message_handler.c/h   # AppMessage communication
+    ├── prayer_data.h         # Shared data structures and helpers
+    └── pkjs/
+        ├── index.js          # PebbleKit JS entry point + settings page
+        ├── prayer_times.js   # Adhan library wrapper
+        ├── timeline.js       # Timeline pin management
+        ├── app_glance.js     # Launcher glance (next prayer slices)
+        ├── location.js       # Geolocation, geocoding, region method hint
+        └── settings.js       # Settings persistence
 ```
+
+PRODUCT.md and DESIGN.md at the project root capture the strategic and visual
+design system. The settings page HTML is embedded as a data URI inside
+`pkjs/index.js`; there is no separate `config/index.html` file.
 
 ## Auto-Region Detection
 
@@ -135,13 +139,14 @@ Prayer data is transmitted using the following message keys:
 | `ISHA_TIME` | int32 | Minutes since midnight |
 | `NEXT_PRAYER_NAME` | cstring | e.g., "Dhuhr" |
 | `NEXT_PRAYER_TIME` | cstring | e.g., "12:30 PM" |
-| `COUNTDOWN_MINUTES` | int32 | Minutes until next prayer |
+| `COUNTDOWN_SECONDS` | int32 | Seconds until next prayer |
+| `NEXT_PRAYER_INDEX` | int32 | Index of next prayer (0=Fajr ... 5=Isha) |
 | `LOCATION_NAME` | cstring | e.g., "London, UK" |
 
 ### Battery Optimization
 
-- GPS coordinates cached for 5 minutes
-- Uses `MINUTE_UNIT` tick timer (not seconds)
+- GPS coordinates cached for 5 minutes in memory, 24 hours on disk
+- Tick timer runs on `MINUTE_UNIT` by default; switches to `SECOND_UNIT` only when the next prayer is within 5 minutes, so the countdown can tick visibly near the moment without burning CPU between prayers
 - Small AppMessage buffers (512/64 bytes)
 - Low-accuracy GPS mode by default
 

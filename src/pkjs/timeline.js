@@ -11,14 +11,8 @@ var PIN_PREFIX = 'prayer-keeper-';
 // Prayer names for pins
 var PRAYER_NAMES = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
 
-// Timeline icons mapping
-var PRAYER_ICONS = {
-    fajr: 'system://images/TIMELINE_SUN',
-    dhuhr: 'system://images/TIMELINE_SUN',
-    asr: 'system://images/TIMELINE_SUN',
-    maghrib: 'system://images/TIMELINE_SUN',
-    isha: 'system://images/TIMELINE_SUN'
-};
+// Timeline icon - custom salat (praying) icon
+var PRAYER_ICON = 'app://images/SALAT_ICON';
 
 /**
  * Format date as ISO string for Timeline API
@@ -64,7 +58,7 @@ function createPrayerPin(prayerName, prayerTime, displayName, formattedTime, rem
             type: 'genericPin',
             title: displayName + ' Prayer',
             subtitle: formattedTime,
-            tinyIcon: PRAYER_ICONS[prayerName] || 'system://images/GENERIC_CONFIRMATION'
+            tinyIcon: PRAYER_ICON
         }
     };
 
@@ -76,12 +70,59 @@ function createPrayerPin(prayerName, prayerTime, displayName, formattedTime, rem
             layout: {
                 type: 'genericReminder',
                 title: displayName + ' in ' + reminderMinutes + ' min',
-                tinyIcon: PRAYER_ICONS[prayerName] || 'system://images/GENERIC_CONFIRMATION'
+                tinyIcon: PRAYER_ICON
             }
         }];
     }
 
     return pin;
+}
+
+// Pebble.getTimelineToken is an async (success, failure) callback API,
+// not a synchronous getter. Cache the token once per JS session so we
+// don't queue a round-trip per pin.
+var cachedTimelineToken = null;
+var pendingTokenCallbacks = [];
+
+function withTimelineToken(callback) {
+    if (cachedTimelineToken) {
+        callback(null, cachedTimelineToken);
+        return;
+    }
+    pendingTokenCallbacks.push(callback);
+    if (pendingTokenCallbacks.length > 1) {
+        // Request already in flight; this callback will fire when it resolves.
+        return;
+    }
+    Pebble.getTimelineToken(
+        function(token) {
+            cachedTimelineToken = token;
+            var pending = pendingTokenCallbacks;
+            pendingTokenCallbacks = [];
+            pending.forEach(function(cb) { cb(null, token); });
+        },
+        function(error) {
+            console.log('Timeline token error: ' + error);
+            var pending = pendingTokenCallbacks;
+            pendingTokenCallbacks = [];
+            pending.forEach(function(cb) { cb(error, null); });
+        }
+    );
+}
+
+// Subscribe to the prayer-times topic exactly once per JS session.
+var subscribedToTopic = false;
+function ensureTopicSubscription() {
+    if (subscribedToTopic) return;
+    subscribedToTopic = true;
+    Pebble.timelineSubscribe(
+        'prayer-times',
+        function() { console.log('Subscribed to prayer-times topic'); },
+        function(error) {
+            subscribedToTopic = false;
+            console.log('Timeline subscribe error: ' + error);
+        }
+    );
 }
 
 /**
@@ -90,41 +131,39 @@ function createPrayerPin(prayerName, prayerTime, displayName, formattedTime, rem
  * @param {function} callback - Called with success boolean
  */
 function insertPin(pin, callback) {
-    // Use Pebble Timeline API
-    Pebble.timelineSubscribe(
-        'prayer-times',
-        function() {
-            console.log('Subscribed to prayer-times topic');
-        },
-        function(error) {
-            console.log('Timeline subscribe error: ' + error);
-        }
-    );
+    ensureTopicSubscription();
 
-    // Insert the pin
-    var request = new XMLHttpRequest();
-    var url = 'https://timeline-api.rebble.io/v1/user/pins/' + encodeURIComponent(pin.id);
-
-    request.open('PUT', url, true);
-    request.setRequestHeader('Content-Type', 'application/json');
-    request.setRequestHeader('X-User-Token', Pebble.getTimelineToken());
-
-    request.onload = function() {
-        if (request.status === 200) {
-            console.log('Pin inserted: ' + pin.id);
-            if (callback) callback(true);
-        } else {
-            console.log('Pin insert failed: ' + request.status);
+    withTimelineToken(function(err, token) {
+        if (err || !token) {
+            console.log('Pin insert skipped, no timeline token');
             if (callback) callback(false);
+            return;
         }
-    };
 
-    request.onerror = function() {
-        console.log('Pin insert network error');
-        if (callback) callback(false);
-    };
+        var request = new XMLHttpRequest();
+        var url = 'https://timeline-api.rebble.io/v1/user/pins/' + encodeURIComponent(pin.id);
 
-    request.send(JSON.stringify(pin));
+        request.open('PUT', url, true);
+        request.setRequestHeader('Content-Type', 'application/json');
+        request.setRequestHeader('X-User-Token', token);
+
+        request.onload = function() {
+            if (request.status === 200) {
+                console.log('Pin inserted: ' + pin.id);
+                if (callback) callback(true);
+            } else {
+                console.log('Pin insert failed: ' + request.status + ' ' + request.responseText);
+                if (callback) callback(false);
+            }
+        };
+
+        request.onerror = function() {
+            console.log('Pin insert network error');
+            if (callback) callback(false);
+        };
+
+        request.send(JSON.stringify(pin));
+    });
 }
 
 /**
@@ -133,28 +172,35 @@ function insertPin(pin, callback) {
  * @param {function} callback - Called with success boolean
  */
 function deletePin(pinId, callback) {
-    var request = new XMLHttpRequest();
-    var url = 'https://timeline-api.rebble.io/v1/user/pins/' + encodeURIComponent(pinId);
-
-    request.open('DELETE', url, true);
-    request.setRequestHeader('X-User-Token', Pebble.getTimelineToken());
-
-    request.onload = function() {
-        if (request.status === 200 || request.status === 404) {
-            console.log('Pin deleted: ' + pinId);
-            if (callback) callback(true);
-        } else {
-            console.log('Pin delete failed: ' + request.status);
+    withTimelineToken(function(err, token) {
+        if (err || !token) {
             if (callback) callback(false);
+            return;
         }
-    };
 
-    request.onerror = function() {
-        console.log('Pin delete network error');
-        if (callback) callback(false);
-    };
+        var request = new XMLHttpRequest();
+        var url = 'https://timeline-api.rebble.io/v1/user/pins/' + encodeURIComponent(pinId);
 
-    request.send();
+        request.open('DELETE', url, true);
+        request.setRequestHeader('X-User-Token', token);
+
+        request.onload = function() {
+            if (request.status === 200 || request.status === 404) {
+                console.log('Pin deleted: ' + pinId);
+                if (callback) callback(true);
+            } else {
+                console.log('Pin delete failed: ' + request.status);
+                if (callback) callback(false);
+            }
+        };
+
+        request.onerror = function() {
+            console.log('Pin delete network error');
+            if (callback) callback(false);
+        };
+
+        request.send();
+    });
 }
 
 /**

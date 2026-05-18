@@ -3,65 +3,55 @@
 #include "prayer_data.h"
 #include "prayer_display.h"
 
-// Window and layers
+// Platform-aware fonts and row metrics. Emery (200x228) bumps up.
+#ifdef PBL_PLATFORM_EMERY
+    #define FONT_TITLE FONT_KEY_GOTHIC_28_BOLD
+    #define FONT_ROW_NAME FONT_KEY_GOTHIC_24_BOLD
+    #define FONT_ROW_TIME FONT_KEY_GOTHIC_24
+    #define FONT_HINT FONT_KEY_GOTHIC_18
+    #define ROW_HEIGHT_RECT 34
+    #define ROW_START_Y_RECT 40
+#else
+    #define FONT_TITLE FONT_KEY_GOTHIC_18_BOLD
+    #define FONT_ROW_NAME FONT_KEY_GOTHIC_18_BOLD
+    #define FONT_ROW_TIME FONT_KEY_GOTHIC_18
+    #define FONT_HINT FONT_KEY_GOTHIC_14
+    #define ROW_HEIGHT_RECT 24
+    #define ROW_START_Y_RECT 28
+#endif
+
 static Window *s_list_window;
 static Layer *s_canvas_layer;
 
-// Prayer display names (5 prayers only, no sunrise)
+// The 5 named prayers (Sunrise lives on the main screen only).
 static const char* DISPLAY_NAMES[] = {"Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"};
 static const PrayerIndex DISPLAY_INDICES[] = {PRAYER_FAJR, PRAYER_DHUHR, PRAYER_ASR, PRAYER_MAGHRIB, PRAYER_ISHA};
 
-// Format time for display
-static void format_prayer_time(int16_t minutes, char* buffer, size_t size) {
-    if (minutes < 0) {
-        snprintf(buffer, size, "--:--");
-        return;
-    }
-
-    int hours = minutes / 60;
-    int mins = minutes % 60;
-
-    if (clock_is_24h_style()) {
-        snprintf(buffer, size, "%02d:%02d", hours, mins);
-    } else {
-        const char *ampm = (hours >= 12) ? "PM" : "AM";
-        hours = hours % 12;
-        if (hours == 0) hours = 12;
-        snprintf(buffer, size, "%d:%02d%s", hours, mins, ampm);
-    }
-}
-
-// Canvas drawing callback
 static void canvas_update_proc(Layer *layer, GContext *ctx) {
     GRect bounds = layer_get_bounds(layer);
     bool is_round = PBL_IF_ROUND_ELSE(true, false);
 
-    // Colors
     GColor bg_color = GColorBlack;
     GColor text_color = GColorWhite;
     GColor highlight_bg = PBL_IF_COLOR_ELSE(GColorDarkGreen, GColorWhite);
     GColor highlight_text = PBL_IF_COLOR_ELSE(GColorWhite, GColorBlack);
 
-    // Clear background
     graphics_context_set_fill_color(ctx, bg_color);
     graphics_fill_rect(ctx, bounds, 0, GCornerNone);
 
     // Header
     graphics_context_set_text_color(ctx, text_color);
-    const char *title = "Prayer Times";
-    GRect title_rect = GRect(0, is_round ? 12 : 4, bounds.size.w, 20);
-    graphics_draw_text(ctx, title, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
+    GRect title_rect = GRect(0, is_round ? 12 : 4, bounds.size.w, 24);
+    graphics_draw_text(ctx, "Prayer Times", fonts_get_system_font(FONT_TITLE),
                        title_rect, GTextOverflowModeTrailingEllipsis,
                        GTextAlignmentCenter, NULL);
 
-    // Calculate row dimensions
-    int start_y = is_round ? 38 : 28;
-    int row_height = is_round ? 26 : 24;
+    int start_y = is_round ? (ROW_START_Y_RECT + 10) : ROW_START_Y_RECT;
+    int row_height = is_round ? (ROW_HEIGHT_RECT + 2) : ROW_HEIGHT_RECT;
     int x_padding = is_round ? 25 : 8;
     int name_width = bounds.size.w / 2 - x_padding;
     int time_width = bounds.size.w / 2 - x_padding;
 
-    // Draw each prayer row
     for (int i = 0; i < 5; i++) {
         int y = start_y + (i * row_height);
         PrayerIndex idx = DISPLAY_INDICES[i];
@@ -69,7 +59,6 @@ static void canvas_update_proc(Layer *layer, GContext *ctx) {
 
         GRect row_rect = GRect(x_padding - 4, y, bounds.size.w - (x_padding - 4) * 2, row_height);
 
-        // Draw highlight background for current prayer
         if (is_current && g_prayer_data.data_valid) {
             graphics_context_set_fill_color(ctx, highlight_bg);
             graphics_fill_rect(ctx, row_rect, 4, GCornersAll);
@@ -78,54 +67,50 @@ static void canvas_update_proc(Layer *layer, GContext *ctx) {
             graphics_context_set_text_color(ctx, text_color);
         }
 
-        // Draw prayer name
         GRect name_rect = GRect(x_padding, y + 2, name_width, row_height - 4);
         graphics_draw_text(ctx, DISPLAY_NAMES[i],
-                          fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD),
+                          fonts_get_system_font(FONT_ROW_NAME),
                           name_rect, GTextOverflowModeTrailingEllipsis,
                           GTextAlignmentLeft, NULL);
 
-        // Draw prayer time
         char time_buf[16];
-        format_prayer_time(g_prayer_data.times[idx], time_buf, sizeof(time_buf));
+        format_time_from_minutes(g_prayer_data.times[idx], time_buf, sizeof(time_buf));
 
         GRect time_rect = GRect(bounds.size.w / 2, y + 2, time_width, row_height - 4);
         graphics_draw_text(ctx, time_buf,
-                          fonts_get_system_font(FONT_KEY_GOTHIC_18),
+                          fonts_get_system_font(FONT_ROW_TIME),
                           time_rect, GTextOverflowModeTrailingEllipsis,
                           GTextAlignmentRight, NULL);
     }
 
-    // Footer hint
-    graphics_context_set_text_color(ctx, text_color);
-    GRect hint_rect = GRect(0, bounds.size.h - (is_round ? 24 : 18), bounds.size.w, 16);
-    graphics_draw_text(ctx, "< Back", fonts_get_system_font(FONT_KEY_GOTHIC_14),
+    // Footer hint, muted to match the main screen's Watch Label role.
+    // UP mirrors the main screen's "DOWN for all times": vertical navigation.
+    graphics_context_set_text_color(ctx, GColorLightGray);
+    GRect hint_rect = GRect(0, bounds.size.h - (is_round ? 26 : 20), bounds.size.w, 18);
+    graphics_draw_text(ctx, "UP for next prayer", fonts_get_system_font(FONT_HINT),
                        hint_rect, GTextOverflowModeTrailingEllipsis,
                        GTextAlignmentCenter, NULL);
 }
 
-// Back button handler
-static void back_click_handler(ClickRecognizerRef recognizer, void *context) {
+static void up_click_handler(ClickRecognizerRef recognizer, void *context) {
     window_stack_pop(true);
 }
 
-// Click config provider
 static void click_config_provider(void *context) {
-    window_single_click_subscribe(BUTTON_ID_BACK, back_click_handler);
+    // UP pops back to the main (next-prayer) screen. BACK keeps its default
+    // OS behavior, so the back button still works as a system-level escape.
+    window_single_click_subscribe(BUTTON_ID_UP, up_click_handler);
 }
 
-// Window load handler
 static void window_load(Window *window) {
     Layer *window_layer = window_get_root_layer(window);
     GRect bounds = layer_get_bounds(window_layer);
 
-    // Create canvas layer
     s_canvas_layer = layer_create(bounds);
     layer_set_update_proc(s_canvas_layer, canvas_update_proc);
     layer_add_child(window_layer, s_canvas_layer);
 }
 
-// Window unload handler
 static void window_unload(Window *window) {
     layer_destroy(s_canvas_layer);
 }

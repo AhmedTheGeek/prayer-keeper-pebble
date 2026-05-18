@@ -44,6 +44,33 @@
           "type": "png",
           "name": "IMAGE_PRAYER_ICON",
           "file": "images/prayer_icon.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "SALAT_ICON_TINY",
+          "file": "images/salat_tiny.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "SALAT_ICON_SMALL",
+          "file": "images/salat_small.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "SALAT_ICON_LARGE",
+          "file": "images/salat_large.png"
+        }
+      ],
+      "publishedMedia": [
+        {
+          "name": "SALAT_ICON",
+          "id": 1,
+          "glance": "SALAT_ICON_TINY",
+          "timeline": {
+            "tiny": "SALAT_ICON_TINY",
+            "small": "SALAT_ICON_SMALL",
+            "large": "SALAT_ICON_LARGE"
+          }
         }
       ]
     }

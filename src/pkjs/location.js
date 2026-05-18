@@ -11,6 +11,11 @@ var CACHE_DURATION = 5 * 60 * 1000; // 5 minutes for GPS refresh
 // localStorage key for persistent cache
 var LOCATION_CACHE_KEY = 'prayerkeeper_location_cache';
 
+// Nominatim's usage policy requires a User-Agent that identifies the app
+// and a way to contact the maintainer. Update the URL below to the project
+// repository before publishing on the Rebble store.
+var NOMINATIM_USER_AGENT = 'PrayerKeeperPebble/1.0 (+https://github.com/prayer-keeper-pebble)';
+
 /**
  * Suggest calculation method based on geographic region
  * @param {number} latitude - Latitude
@@ -156,31 +161,51 @@ function getCurrentLocation(successCallback, errorCallback, options) {
 }
 
 /**
- * Reverse geocode coordinates to get location name
- * Uses Nominatim OpenStreetMap API (free, no key required)
+ * Reverse geocode coordinates to get location name.
+ * Uses Nominatim OpenStreetMap API (free, no key required).
+ * Retries once with exponential backoff on 429/403 since Nominatim throttles
+ * unidentified or over-eager clients.
  * @param {number} latitude - Latitude
  * @param {number} longitude - Longitude
  * @param {function} callback - Called with location name string
+ * @param {number} [attempt] - Internal retry counter (omit on first call)
  */
-function reverseGeocode(latitude, longitude, callback) {
+function reverseGeocode(latitude, longitude, callback, attempt) {
+    attempt = attempt || 0;
+    var MAX_ATTEMPTS = 2;
+
     var url = 'https://nominatim.openstreetmap.org/reverse?' +
               'format=json&lat=' + latitude + '&lon=' + longitude +
               '&zoom=10&addressdetails=1';
 
     var xhr = new XMLHttpRequest();
     xhr.open('GET', url, true);
-    xhr.setRequestHeader('User-Agent', 'PrayerKeeperPebble/1.0');
+    xhr.setRequestHeader('User-Agent', NOMINATIM_USER_AGENT);
+
+    var retryOrFail = function(reason) {
+        if (attempt + 1 < MAX_ATTEMPTS) {
+            var delay = 2000 * Math.pow(2, attempt);
+            console.log('Geocode ' + reason + ', retrying in ' + delay + 'ms');
+            setTimeout(function() {
+                reverseGeocode(latitude, longitude, callback, attempt + 1);
+            }, delay);
+        } else {
+            console.log('Geocode giving up after ' + reason);
+            callback('Unknown');
+        }
+    };
 
     xhr.onload = function() {
         if (xhr.status === 200) {
             try {
                 var response = JSON.parse(xhr.responseText);
-                var name = formatLocationName(response);
-                callback(name);
+                callback(formatLocationName(response));
             } catch (e) {
                 console.log('Geocode parse error: ' + e);
                 callback('Unknown');
             }
+        } else if (xhr.status === 429 || xhr.status === 403) {
+            retryOrFail('HTTP ' + xhr.status);
         } else {
             console.log('Geocode HTTP error: ' + xhr.status);
             callback('Unknown');
@@ -188,14 +213,12 @@ function reverseGeocode(latitude, longitude, callback) {
     };
 
     xhr.onerror = function() {
-        console.log('Geocode network error');
-        callback('Unknown');
+        retryOrFail('network error');
     };
 
     xhr.timeout = 10000;
     xhr.ontimeout = function() {
-        console.log('Geocode timeout');
-        callback('Unknown');
+        retryOrFail('timeout');
     };
 
     xhr.send();

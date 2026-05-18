@@ -3,7 +3,10 @@
  * Handles user settings persistence
  */
 
-// Default settings
+// Default settings.
+// `userConfigured` flips to true the first time the user opens the settings
+// page and saves; until then, index.js may auto-apply a calculation method
+// suggested by the device's location.
 var DEFAULT_SETTINGS = {
     calculationMethod: 'mwl',
     asrMethod: 'shafi',
@@ -12,7 +15,8 @@ var DEFAULT_SETTINGS = {
     manualLongitude: 0,
     timelineEnabled: true,
     reminderMinutes: 10,
-    vibrationEnabled: true
+    vibrationEnabled: true,
+    userConfigured: false
 };
 
 // Settings keys for localStorage
