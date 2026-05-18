@@ -146,7 +146,7 @@ Prayer data is transmitted using the following message keys:
 ### Battery Optimization
 
 - GPS coordinates cached for 5 minutes in memory, 24 hours on disk
-- Tick timer runs on `MINUTE_UNIT` by default; switches to `SECOND_UNIT` only when the next prayer is within 5 minutes, so the countdown can tick visibly near the moment without burning CPU between prayers
+- Tick timer runs on `MINUTE_UNIT` only; the countdown is displayed as labeled minutes (`23m`, `1h 5m`) so there's no per-second wake-up at any point
 - Small AppMessage buffers (512/64 bytes)
 - Low-accuracy GPS mode by default
 

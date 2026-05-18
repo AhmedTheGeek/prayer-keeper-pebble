@@ -22,11 +22,6 @@
 
 #define SCALE(n) (((n) * LAYOUT_SCALE_NUM) / 10)
 
-// Subscribe to SECOND_UNIT inside this window; switch to MINUTE_UNIT
-// whenever the next prayer is more than 5 minutes away. Cuts CPU wake-ups
-// 60x for the long stretches between prayers.
-#define SECOND_TICK_THRESHOLD 300
-
 static Window *s_main_window;
 static TextLayer *s_location_layer;
 static TextLayer *s_next_label_layer;
@@ -36,23 +31,8 @@ static TextLayer *s_countdown_layer;
 static TextLayer *s_hint_layer;
 
 static char s_countdown_buffer[32];
-static TimeUnits s_current_units = MINUTE_UNIT;
 
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed);
-
-// Switch tick subscription to match how close the next prayer is.
-// tick_timer_service_subscribe replaces any existing subscription, so a
-// straight call is enough; we only re-subscribe when the desired unit changes.
-static void apply_tick_subscription(void) {
-    TimeUnits desired = (g_prayer_data.data_valid
-                         && g_prayer_data.countdown_seconds > 0
-                         && g_prayer_data.countdown_seconds < SECOND_TICK_THRESHOLD)
-        ? SECOND_UNIT : MINUTE_UNIT;
-    if (desired != s_current_units) {
-        tick_timer_service_subscribe(desired, tick_handler);
-        s_current_units = desired;
-    }
-}
 
 void format_time_from_minutes(int16_t minutes, char* buffer, size_t buffer_size) {
     if (minutes < 0) {
@@ -73,19 +53,23 @@ void format_time_from_minutes(int16_t minutes, char* buffer, size_t buffer_size)
     }
 }
 
-// Format the countdown buffer. Hours present, drop the seconds noise
-// ("5h 42m"); under an hour, show mm:ss so the seconds tick is visible
-// during the SECOND_UNIT window near a prayer.
+// Labeled minute-based countdown. Never shows raw "M:SS" — that reads as
+// time-of-day and made seconds-tick mode look like minutes were flying by.
+// Round up so the user sees "1m" until the prayer actually arrives, not "0m"
+// for the final 59 seconds.
 static void format_countdown(int32_t total_seconds, char *buffer, size_t buffer_size) {
-    if (total_seconds < 0) total_seconds = 0;
-    int hours = total_seconds / 3600;
-    int minutes = (total_seconds % 3600) / 60;
-    int seconds = total_seconds % 60;
+    if (total_seconds <= 0) {
+        snprintf(buffer, buffer_size, "Now");
+        return;
+    }
+    int32_t total_minutes = (total_seconds + 59) / 60;
+    int hours = total_minutes / 60;
+    int minutes = total_minutes % 60;
 
     if (hours > 0) {
-        snprintf(buffer, buffer_size, "%dh %02dm", hours, minutes);
+        snprintf(buffer, buffer_size, "%dh %dm", hours, minutes);
     } else {
-        snprintf(buffer, buffer_size, "%d:%02d", minutes, seconds);
+        snprintf(buffer, buffer_size, "%dm", minutes);
     }
 }
 
@@ -104,7 +88,6 @@ void prayer_display_update(void) {
         text_layer_set_text(s_next_prayer_time_layer, "");
         text_layer_set_text(s_countdown_layer, "");
         text_layer_set_text(s_hint_layer, "SELECT to retry");
-        apply_tick_subscription();
         return;
     }
 
@@ -115,7 +98,6 @@ void prayer_display_update(void) {
         text_layer_set_text(s_next_prayer_time_layer, "");
         text_layer_set_text(s_countdown_layer, "");
         text_layer_set_text(s_hint_layer, "");
-        apply_tick_subscription();
         return;
     }
 
@@ -126,7 +108,6 @@ void prayer_display_update(void) {
     text_layer_set_text(s_hint_layer, "DOWN for all times");
 
     prayer_display_update_countdown();
-    apply_tick_subscription();
 
     if (window_stack_contains_window(prayer_list_get_window())) {
         prayer_list_update();
@@ -150,14 +131,10 @@ static void click_config_provider(void *context) {
 }
 
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
-    if (!g_prayer_data.data_valid) {
-        apply_tick_subscription();
-        return;
-    }
+    if (!g_prayer_data.data_valid) return;
 
-    int32_t delta = (s_current_units == SECOND_UNIT) ? 1 : 60;
     if (g_prayer_data.countdown_seconds > 0) {
-        g_prayer_data.countdown_seconds -= delta;
+        g_prayer_data.countdown_seconds -= 60;
         if (g_prayer_data.countdown_seconds < 0) g_prayer_data.countdown_seconds = 0;
     }
 
@@ -172,7 +149,6 @@ static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
     }
 
     prayer_display_update_countdown();
-    apply_tick_subscription();
 }
 
 static void window_load(Window *window) {
@@ -234,8 +210,6 @@ static void window_load(Window *window) {
     text_layer_set_text_alignment(s_hint_layer, GTextAlignmentCenter);
     layer_add_child(window_layer, text_layer_get_layer(s_hint_layer));
 
-    // Tick: start coarse, the data update will tighten it if we're close
-    s_current_units = MINUTE_UNIT;
     tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
 }
 

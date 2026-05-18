@@ -1,0 +1,12 @@
+Accurate Muslim prayer times on your wrist.
+
+The main screen shows the next prayer's name, its time, and a live countdown. Press Down for the full day's times.
+
+  - All five daily prayers, plus Sunrise
+  - 8 calculation methods (MWL, ISNA, Umm Al-Qura, Karachi, and more)
+  - Optional Timeline pins with 5-30 min reminders
+  - Next prayer shown on the launcher glance
+  - Auto-location, or pin a fixed location
+  - Works offline with cached times
+
+May Allah accept your prayers.
